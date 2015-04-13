@@ -5822,7 +5822,7 @@ out:
 static enum compl_status_e blockio_exec_write_verify(struct vdisk_cmd_params *p)
 {
 	/* Not yet implemented */
-	WARN_ON(true);
+	PRINT_WARNING("vdisk_blockio: WRITE VERIFY is not yet implemented");
 	return blockio_exec_write(p);
 }
 
