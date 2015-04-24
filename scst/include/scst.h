@@ -265,6 +265,18 @@ static inline unsigned int queue_max_hw_sectors(struct request_queue *q)
 #endif
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
+/*
+ * See also patch "new helper: file_inode(file)" (commit ID
+ * 496ad9aa8ef448058e36ca7a787c61f2e63f0f54). See also patch
+ * "kill f_dentry macro" (commit ID 78d28e651f97).
+ */
+static inline struct inode *file_inode(const struct file *f)
+{
+	return f->f_dentry->d_inode;
+}
+#endif
+
 #ifndef __list_for_each
 /* ToDo: cleanup when both are the same for all relevant kernels */
 #define __list_for_each list_for_each
