@@ -763,6 +763,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		qla2x00_alert_all_vps(ha, mb);
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 static void
 qla2x00_adjust_sdev_qdepth_up(struct scsi_device *sdev, void *data)
 {
@@ -785,6 +786,7 @@ qla2x00_adjust_sdev_qdepth_up(struct scsi_device *sdev, void *data)
 	    fcport->ha->host_no, sdev->channel, sdev->id, (unsigned long long)sdev->lun,
 	    sdev->queue_depth));
 }
+#endif
 
 static void
 qla2x00_adjust_sdev_qdepth_down(struct scsi_device *sdev, void *data)
@@ -800,6 +802,7 @@ qla2x00_adjust_sdev_qdepth_down(struct scsi_device *sdev, void *data)
 	    sdev->queue_depth));
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 static inline void
 qla2x00_ramp_up_queue_depth(scsi_qla_host_t *ha, srb_t *sp)
 {
@@ -821,6 +824,7 @@ qla2x00_ramp_up_queue_depth(scsi_qla_host_t *ha, srb_t *sp)
 	starget_for_each_device(sdev->sdev_target, fcport,
 	    qla2x00_adjust_sdev_qdepth_up);
 }
+#endif
 
 /**
  * qla2x00_process_completed_request() - Process a Fast Post response.
@@ -862,7 +866,9 @@ qla2x00_process_completed_request(struct scsi_qla_host *ha, uint32_t index)
 		/* Save ISP completion status */
 		sp->cmd->result = DID_OK << 16;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 		qla2x00_ramp_up_queue_depth(ha, sp);
+#endif
 		qla2x00_sp_compl(ha, sp);
 	} else {
 		DEBUG2(printk("scsi(%ld): Invalid ISP SCSI completion handle\n",

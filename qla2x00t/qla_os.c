@@ -150,6 +150,7 @@ static int qla2xxx_eh_target_reset(struct scsi_cmnd *);
 static int qla2xxx_eh_bus_reset(struct scsi_cmnd *);
 static int qla2xxx_eh_host_reset(struct scsi_cmnd *);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33) && \
 	!defined(CONFIG_SUSE_KERNEL) && \
 	(!defined(RHEL_RELEASE_CODE) || \
@@ -160,6 +161,7 @@ static int qla2x00_change_queue_depth(struct scsi_device *sdev, int qdepth,
 		int reason);
 #endif
 static int qla2x00_change_queue_type(struct scsi_device *, int);
+#endif
 
 static struct scsi_host_template qla2x00_driver_template = {
 	.module			= THIS_MODULE,
@@ -182,8 +184,10 @@ static struct scsi_host_template qla2x00_driver_template = {
 	.slave_destroy		= qla2xxx_slave_destroy,
 	.scan_finished		= qla2xxx_scan_finished,
 	.scan_start		= qla2xxx_scan_start,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 	.change_queue_depth	= qla2x00_change_queue_depth,
 	.change_queue_type	= qla2x00_change_queue_type,
+#endif
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
 	.use_clustering		= ENABLE_CLUSTERING,
@@ -222,8 +226,10 @@ struct scsi_host_template qla24xx_driver_template = {
 	.slave_destroy		= qla2xxx_slave_destroy,
 	.scan_finished		= qla2xxx_scan_finished,
 	.scan_start		= qla2xxx_scan_start,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 	.change_queue_depth	= qla2x00_change_queue_depth,
 	.change_queue_type	= qla2x00_change_queue_type,
+#endif
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
 	.use_clustering		= ENABLE_CLUSTERING,
@@ -1190,10 +1196,14 @@ qla2xxx_slave_configure(struct scsi_device *sdev)
 	scsi_qla_host_t *ha = shost_priv(sdev->host);
 	struct fc_rport *rport = starget_to_rport(sdev->sdev_target);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 	if (sdev->tagged_supported)
 		scsi_activate_tcq(sdev, ha->max_q_depth);
 	else
 		scsi_deactivate_tcq(sdev, ha->max_q_depth);
+#else
+	scsi_change_queue_depth(sdev, ha->max_q_depth);
+#endif
 
 	rport->dev_loss_tmo = ha->port_down_retry_count;
 
@@ -1220,6 +1230,7 @@ qla2x00_change_queue_depth(struct scsi_device *sdev, int qdepth)
 
 #else /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33) && !defined(CONFIG_SUSE_KERNEL) && (!defined(RHEL_RELEASE_CODE) || RHEL_RELEASE_CODE -0 < RHEL_RELEASE_VERSION(6, 1)) */
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 static void qla2x00_handle_queue_full(struct scsi_device *sdev, int qdepth)
 {
 	scsi_qla_host_t *ha = shost_priv(sdev->host);
@@ -1270,9 +1281,11 @@ qla2x00_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 
 	return sdev->queue_depth;
 }
+#endif
 
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33) && !defined(CONFIG_SUSE_KERNEL) && (!defined(RHEL_RELEASE_CODE) || RHEL_RELEASE_CODE -0 < RHEL_RELEASE_VERSION(6, 1)) */
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 static int
 qla2x00_change_queue_type(struct scsi_device *sdev, int tag_type)
 {
@@ -1287,6 +1300,7 @@ qla2x00_change_queue_type(struct scsi_device *sdev, int tag_type)
 
 	return tag_type;
 }
+#endif
 
 /**
  * qla2x00_config_dma_addressing() - Configure OS DMA addressing method.
