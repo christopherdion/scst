@@ -691,6 +691,10 @@ static int do_recv(struct iscsi_conn *conn)
 	mm_segment_t oldfs;
 	struct msghdr *msg;
 	int read_size;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
+	struct iovec *first_iov;
+	int first_len;
+#endif
 
 	EXTRACHECKS_BUG_ON(conn->read_cmnd == NULL);
 
@@ -711,6 +715,8 @@ restart:
 	read_size = msg->msg_iter.count;
 #else
 	read_size = conn->read_size;
+	first_iov = msg->msg_iov;
+	first_len = first_iov->iov_len;
 #endif
 
 	oldfs = get_fs();
@@ -737,7 +743,7 @@ restart:
 		sBUG_ON(msg->msg_iter.count + res != read_size);
 		res = msg->msg_iter.count;
 #else
-		/* To do: restore msg->msg_iov check. */
+		sBUG_ON((res >= first_len) && (first_iov->iov_len != 0));
 		conn->read_size -= res;
 		res = conn->read_size;
 #endif
@@ -1088,11 +1094,7 @@ int istrd(void *arg)
 	PRINT_INFO("Read thread for pool %p started, PID %d", p, current->pid);
 
 	current->flags |= PF_NOFREEZE;
-#if defined(RHEL_MAJOR) && RHEL_MAJOR -0 <= 5
-	rc = set_cpus_allowed(current, p->cpu_mask);
-#else
 	rc = set_cpus_allowed_ptr(current, &p->cpu_mask);
-#endif
 	if (rc != 0)
 		PRINT_ERROR("Setting CPU affinity failed: %d", rc);
 
@@ -1856,11 +1858,7 @@ int istwr(void *arg)
 	PRINT_INFO("Write thread for pool %p started, PID %d", p, current->pid);
 
 	current->flags |= PF_NOFREEZE;
-#if defined(RHEL_MAJOR) && RHEL_MAJOR -0 <= 5
-	rc = set_cpus_allowed(current, p->cpu_mask);
-#else
 	rc = set_cpus_allowed_ptr(current, &p->cpu_mask);
-#endif
 	if (rc != 0)
 		PRINT_ERROR("Setting CPU affinity failed: %d", rc);
 
