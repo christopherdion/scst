@@ -173,10 +173,10 @@ static inline u32 idx_from_wr_id(u64 wr_id)
 }
 
 struct rdma_iu {
-	u64 raddr;
-	u32 rkey;
-	struct ib_sge *sge;
-	u32 sge_cnt;
+	u64		raddr;
+	u32		rkey;
+	struct ib_sge	*sge;
+	u32		sge_cnt;
 };
 
 /**
@@ -326,6 +326,7 @@ enum rdma_ch_state {
  * @spinlock:      Protects free_list.
  * @free_list:     Head of list with free send I/O contexts.
  * @ioctx_ring:    Send I/O context ring.
+ * @ioctx_recv_ring: Receive I/O context ring.
  * @wc:            Work completion array.
  * @state:         channel state. See also enum rdma_ch_state.
  * @processing_wait_list: Whether or not cmd_wait_list is being processed.
@@ -334,6 +335,8 @@ enum rdma_ch_state {
  *                 list contains struct srpt_ioctx elements and is protected
  *                 against concurrent modification by the cm_id spinlock.
  * @pkey:          P_Key of the IB partition for this SRP channel.
+ * @using_rdma_cm: Whether to use the RDMA/CM or the IB/CM.
+ * @processing_wait_list: Whether the I/O context wait list is being processed.
  * @scst_sess:     SCST session information associated with this SRP channel.
  * @sess_name:     SCST session name.
  */
@@ -478,10 +481,3 @@ struct srp_login_req_rdma {
 };
 
 #endif				/* IB_SRPT_H */
-
-/*
- * Local variables:
- * c-basic-offset:   8
- * indent-tabs-mode: t
- * End:
- */

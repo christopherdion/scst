@@ -91,7 +91,6 @@ MODULE_LICENSE("Dual BSD/GPL");
  */
 
 static u64 srpt_service_guid;
-/* List of srpt_device structures. */
 static atomic_t srpt_device_count;
 #if defined(CONFIG_SCST_DEBUG) || defined(CONFIG_SCST_TRACING)
 static unsigned long trace_flag = DEFAULT_SRPT_TRACE_FLAGS;
@@ -185,7 +184,7 @@ static struct scst_tgt_template srpt_template;
 static void srpt_unregister_mad_agent(struct srpt_device *sdev);
 #ifdef CONFIG_SCST_PROC
 static void srpt_unregister_procfs_entry(struct scst_tgt_template *tgt);
-#endif /*CONFIG_SCST_PROC*/
+#endif /* CONFIG_SCST_PROC */
 static void srpt_unmap_sg_to_ib_sge(struct srpt_rdma_ch *ch,
 				    struct srpt_send_ioctx *ioctx);
 static void srpt_destroy_ch_ib(struct srpt_rdma_ch *ch);
@@ -598,9 +597,16 @@ static void srpt_mad_recv_handler(struct ib_mad_agent *mad_agent,
 	BUILD_BUG_ON(offsetof(struct ib_dm_mad, data) != IB_MGMT_DEVICE_HDR);
 
 	rsp = ib_create_send_mad(mad_agent, mad_wc->wc->src_qp,
-				 mad_wc->wc->pkey_index, 0,
-				 IB_MGMT_DEVICE_HDR, IB_MGMT_DEVICE_DATA,
-				 GFP_KERNEL);
+				 mad_wc->wc->pkey_index,
+#ifdef CREATE_SEND_MAD_HAS_AH_ARG
+				 NULL,
+#endif
+				 0, IB_MGMT_DEVICE_HDR, IB_MGMT_DEVICE_DATA,
+				 GFP_KERNEL
+#ifdef CREATE_SEND_MAD_HAS_BASE_ARG
+				 , 0
+#endif
+				 );
 	if (IS_ERR(rsp))
 		goto err_rsp;
 
@@ -1930,12 +1936,13 @@ static void srpt_process_send_completion(struct ib_cq *cq,
 						  srpt_send_context);
 		} else if (opcode == SRPT_RDMA_READ_LAST ||
 			   opcode == SRPT_RDMA_WRITE_LAST) {
-			PRINT_INFO("RDMA t %d for idx %u failed with status %d."
-				   "%s", opcode, index, wc->status,
+			PRINT_INFO("RDMA t %d for idx %u failed with status %d.%s",
+				   opcode, index, wc->status,
+				   wc->status == IB_WC_RETRY_EXC_ERR ?
+				   " If this has not been triggered by a cable pull, please consider to increase the subnet timeout parameter on the IB switch." :
 				   wc->status == IB_WC_WR_FLUSH_ERR ?
-				   " If this has not been triggered by a cable"
-				   " pull, please check the involved IB HCA's"
-				   " and cables." : "");
+				   " If this has not been triggered by a cable pull, please check the involved IB HCA's and cables." :
+				   "");
 			srpt_handle_rdma_err_comp(ch, ch->ioctx_ring[index],
 						  opcode, srpt_xmt_rsp_context);
 		} else if (opcode == SRPT_RDMA_ZEROLENGTH_WRITE) {
@@ -2101,9 +2108,17 @@ static int srpt_create_ch_ib(struct srpt_rdma_ch *ch)
     && !defined(RHEL_RELEASE_CODE)
 	ch->cq = ib_create_cq(sdev->device, srpt_completion, NULL, ch,
 			      ch->rq_size + srpt_sq_size);
-#else
+#elif !defined(IB_CREATE_CQ_HAS_INIT_ATTR)
 	ch->cq = ib_create_cq(sdev->device, srpt_completion, NULL, ch,
 			      ch->rq_size + srpt_sq_size, 0);
+#else
+	{
+	struct ib_cq_init_attr ia = { };
+
+	ia.cqe = ch->rq_size + srpt_sq_size;
+	ia.comp_vector = ch->comp_vector;
+	ch->cq = ib_create_cq(sdev->device, srpt_completion, NULL, ch, &ia);
+	}
 #endif
 	if (IS_ERR(ch->cq)) {
 		ret = PTR_ERR(ch->cq);
@@ -2362,7 +2377,7 @@ static bool srpt_is_target_enabled(struct scst_tgt *scst_tgt)
 
 	return srpt_tgt && srpt_tgt->enabled;
 }
-#endif
+#endif /* CONFIG_SCST_PROC */
 
 /**
  * srpt_cm_req_recv() - Process the event IB_CM_REQ_RECEIVED.
@@ -3894,7 +3909,7 @@ static const struct attribute *srpt_sess_attrs[] = {
 	&srpt_ch_state_attr.attr,
 	NULL
 };
-#endif
+#endif /* CONFIG_SCST_PROC */
 
 /* SCST target template for the SRP target implementation. */
 static struct scst_tgt_template srpt_template = {
@@ -3944,7 +3959,7 @@ static struct scst_proc_data srpt_log_proc_data = {
 };
 #endif
 
-#endif /*CONFIG_SCST_PROC*/
+#endif /* CONFIG_SCST_PROC */
 
 /* Note: the caller must have zero-initialized *@srpt_tgt. */
 static void srpt_init_tgt(struct srpt_tgt *srpt_tgt)
@@ -4275,7 +4290,7 @@ static void srpt_unregister_procfs_entry(struct scst_tgt_template *tgt)
 #endif
 }
 
-#endif /*CONFIG_SCST_PROC*/
+#endif /* CONFIG_SCST_PROC */
 
 /**
  * srpt_init_module() - Kernel module initialization.
@@ -4383,14 +4398,14 @@ static int __init srpt_init_module(void)
 		PRINT_ERROR("couldn't register procfs entry");
 		goto out_rdma_cm;
 	}
-#endif /*CONFIG_SCST_PROC*/
+#endif /* CONFIG_SCST_PROC */
 
 	return 0;
 
 #ifdef CONFIG_SCST_PROC
 out_rdma_cm:
 	rdma_destroy_id(rdma_cm_id);
-#endif /*CONFIG_SCST_PROC*/
+#endif /* CONFIG_SCST_PROC */
 out_unregister_client:
 	ib_unregister_client(&srpt_client);
 out_unregister_target:
@@ -4408,7 +4423,7 @@ static void __exit srpt_cleanup_module(void)
 	ib_unregister_client(&srpt_client);
 #ifdef CONFIG_SCST_PROC
 	srpt_unregister_procfs_entry(&srpt_template);
-#endif /*CONFIG_SCST_PROC*/
+#endif /* CONFIG_SCST_PROC */
 	scst_unregister_target_template(&srpt_template);
 
 	TRACE_EXIT();
@@ -4416,10 +4431,3 @@ static void __exit srpt_cleanup_module(void)
 
 module_init(srpt_init_module);
 module_exit(srpt_cleanup_module);
-
-/*
- * Local variables:
- * c-basic-offset:   8
- * indent-tabs-mode: t
- * End:
- */
