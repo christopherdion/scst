@@ -28,7 +28,7 @@
 #include "digest.h"
 #include "iscsit_transport.h"
 
-#ifndef GENERATING_UPSTREAM_PATCH
+#if 0 && !defined(GENERATING_UPSTREAM_PATCH)
 #if !defined(CONFIG_TCP_ZERO_COPY_TRANSFER_COMPLETION_NOTIFICATION)
 #warning Patch put_page_callback-<kernel-version>.patch not applied on your \
 kernel or CONFIG_TCP_ZERO_COPY_TRANSFER_COMPLETION_NOTIFICATION \
@@ -3279,6 +3279,7 @@ static ssize_t iscsi_tcp_get_initiator_ip(struct iscsi_conn *conn,
 			"%pI4", &inet_sk(sk)->inet_daddr);
 #endif
 		break;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case AF_INET6:
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 		pos = scnprintf(buf, size,
@@ -3293,6 +3294,7 @@ static ssize_t iscsi_tcp_get_initiator_ip(struct iscsi_conn *conn,
 #endif
 #endif
 		break;
+#endif
 	default:
 		pos = scnprintf(buf, size, "Unknown family %d",
 			sk->sk_family);
@@ -4290,7 +4292,7 @@ static int __init iscsi_init(void)
 		goto out_destroy_mempool;
 	}
 #else
-#ifndef GENERATING_UPSTREAM_PATCH
+#if 0 && !defined(GENERATING_UPSTREAM_PATCH)
 	PRINT_WARNING("%s",
 		"CONFIG_TCP_ZERO_COPY_TRANSFER_COMPLETION_NOTIFICATION "
 		"not enabled in your kernel. ISCSI-SCST will be working with "
